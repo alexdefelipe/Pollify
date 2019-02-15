@@ -1,0 +1,12 @@
+.container {
+  vertical-align: middle;
+}
+
+.card {
+  margin-top: 10px;
+}
+
+.card-head {
+  padding-left: 20px;
+  padding-top: 10px;
+}
