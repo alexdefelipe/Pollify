@@ -1,5 +1,5 @@
 # Polify: a project developed with Flask and React
-<p align=center><image src="./flask.png" height="100px" /><image src="./react.png" height="100px" /></p>
+<p align=center><image src="./flask.png" height="100px" />  <image src="./react.png" height="100px" /></p>
 
 ## About Pollify
 
