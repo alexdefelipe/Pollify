@@ -6,7 +6,7 @@
 Pollify is a web application for making and aswering questions of any kind. Registering is not required for basic functionality, 
 but you can get extra features if you do so.
 
-**Note: the real purpose of Pollify is to practice my full stacker developer skills**
+**Note: the real purpose of Pollify is to practice my full stack developer skills**
 
 ## Technical features
 
