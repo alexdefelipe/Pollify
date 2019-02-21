@@ -10,8 +10,9 @@ but you can get extra features if you do so.
 
 ## Technical features
 
+* Flask and React as backend and frontend frameworks, respectively.
 * Design powered by Bootstrap
-* SQLite database
+* SQLite database managed with an ORM
 * JWT authentication system
 
 ## Usage
