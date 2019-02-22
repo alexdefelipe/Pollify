@@ -54,6 +54,7 @@ def addQuestion(username):
 def iniciarSesion():
     username = request.get_json()['username']
     password = request.get_json()['password']
+    remember = request.get_json()['remember']
 
     try:
         user = User.query.filter_by(
@@ -61,7 +62,8 @@ def iniciarSesion():
         access_token = create_access_token(identity=username)
         refresh_token = create_refresh_token(identity=username)
         response = jsonify(code=200, payload=user.serialize(),
-                           access_token=access_token, refresh_token=refresh_token)
+                           access_token=access_token, refresh_token=refresh_token,
+                           remember=remember)
     except Exception as ex:
         plantilla = "Se ha producido un error de tipo {0}."
         mensaje = plantilla.format(type(ex).__name__, ex.args)
@@ -97,10 +99,16 @@ def holaMundoPrivado():
     return "Hello, World!"
 
 
-@app.route('/api/tokenRefresh', methods=['POST'])
+@app.route('/api/tokenRefresh', methods=['GET'])
 @jwt_refresh_token_required
 def tokenRefresh():
     current_user = get_jwt_identity()
     access_token = create_access_token(identity=current_user)
     response = jsonify(access_token=access_token)
     return response
+
+
+@app.route('/api/getUsernameFromToken', methods=['GET'])
+@jwt_required
+def returnUsernameFromToken():
+    return jsonify(username=get_jwt_identity())

@@ -8,6 +8,7 @@ import "react-toastify/dist/ReactToastify.css";
 export default class ModalComponent extends React.Component {
   usernameRef = React.createRef();
   passRef = React.createRef();
+  rememberRef = React.createRef();
 
   constructor(props) {
     super(props);
@@ -20,7 +21,8 @@ export default class ModalComponent extends React.Component {
     event.preventDefault();
     let username = this.usernameRef.current.value;
     let password = this.passRef.current.value;
-    this.props.iniciarSesion(username, password);
+    let remember = this.rememberRef.current.checked;
+    this.props.iniciarSesion(username, password, remember);
   }
 
   handleCancel(event) {
@@ -98,6 +100,16 @@ export default class ModalComponent extends React.Component {
                   className="form-control"
                   ref={this.passRef}
                 />
+              </div>
+              <div className="form-check">
+                <input
+                  type="checkbox"
+                  className="form-check-input"
+                  ref={this.rememberRef}
+                />
+                <label className="form-check-label" htmlFor="remember">
+                  Mantener la sesión
+                </label>
               </div>
             </ModalBody>
             <ModalFooter>

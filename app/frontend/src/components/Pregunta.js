@@ -18,7 +18,10 @@ class Pregunta extends Component {
           </h6>
         </div>
         <div className="card-body">{body}</div>
-        <div className="card-footer text-muted">Autor: {author}</div>
+        <div className="card-footer text-muted">
+          Autor:{" "}
+          <a href={`http://localhost:5000/api/questions/${author}`}>{author}</a>
+        </div>
       </div>
     );
   }

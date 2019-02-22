@@ -9,8 +9,9 @@ import "react-toastify/dist/ReactToastify.css";
 class App extends Component {
   state = {
     preguntas: {},
-    username: "anonimo",
-    showModal: false
+    username: "anonimo", //TODO Obtener el username del token
+    showModal: false,
+    expiration: undefined
   };
 
   constructor(props) {
@@ -18,60 +19,107 @@ class App extends Component {
     this.toggleModal = this.toggleModal.bind(this);
   }
 
-  componentDidMount() {
+  componentWillMount() {
     axios.get("http://localhost:5000/api/questions").then(response => {
       this.setState({ preguntas: response.data });
+      let storage =
+        localStorage.getItem("token") || sessionStorage.getItem("token");
+      if (storage === null) {
+        this.setState({ username: "anonimo" });
+      } else {
+        let date = JSON.parse(storage)[2];
+        this.setState({ expiration: date });
+        let token = JSON.parse(storage)[0];
+        let url = "http://localhost:5000/api/getUsernameFromToken";
+        let headers = { "Authorization": `Bearer ${token}` }; //prettier-ignore
+        axios.get(url, { headers }).then(response => {
+          this.setState({ username: response.data.username });
+        });
+        // this.lanzarPeticion("get", url, false, headers).then(response => {
+        //   this.setState({ username: response.data.username });
+        // });
+      }
     });
   }
 
   añadirPregunta = datos_pregunta => {
-    axios
-      .post("http://localhost:5000/api/questions/" + this.state.username, {
-        title: datos_pregunta[0],
-        body: datos_pregunta[1]
-      })
-      .then(response => {
-        console.log(response);
-        let code = response.data.code;
-        let payload = response.data.payload;
-        if (code === 200) {
-          const preguntas = { ...this.state.preguntas };
-          preguntas[`${Object.keys(preguntas).length}`] = payload;
-          this.setState({ preguntas: preguntas });
-          this.lanzarToast("success", `Pregunta añadida satisfactoriamente :)`);
-        } else {
-          this.lanzarToast(
-            "error",
-            `No se ha podido añadir la pregunta. Se ha producido un error ${code}  :(`
-          );
-        }
-      });
+    let url = `http://localhost:5000/api/questions/${this.state.username}`;
+    this.lanzarPeticion("post", url, false, undefined, {
+      title: datos_pregunta[0],
+      body: datos_pregunta[1]
+    }).then(response => {
+      console.log(response);
+      let code = response.data.code;
+      let payload = response.data.payload;
+      if (code === 200) {
+        const preguntas = { ...this.state.preguntas };
+        preguntas[`${Object.keys(preguntas).length}`] = payload;
+        this.setState({ preguntas: preguntas });
+        this.lanzarToast("success", `Pregunta añadida satisfactoriamente :)`);
+      } else {
+        this.lanzarToast(
+          "error",
+          `No se ha podido añadir la pregunta. Se ha producido un error ${code}  :(`
+        );
+      }
+    });
   };
 
   cerrarSesion = () => {
+    localStorage.removeItem("token");
+    sessionStorage.removeItem("token");
     this.setState({ username: "anonimo" });
     console.log(this.state);
   };
 
-  iniciarSesion = (username, password) => {
-    console.log(`iniciar sesion ${username} ${password}`);
+  iniciarSesion = (username, password, remember) => {
     axios
       .post("http://localhost:5000/api/iniciarSesion", {
         username: username,
-        password: password
+        password: password,
+        remember: remember
       })
       .then(response => {
         console.log(response);
         let code = response.data.code;
         let payload = response.data.payload;
-
+        console.log(payload);
         if (code === 200) {
-          this.setState({ username: payload.username });
+          // Obtener fecha de expiración del token
+          let fecha = new Date();
+          let expiration = 15;
+          let fecha_expiration = new Date(
+            fecha.getTime() + expiration * 60000
+          ).valueOf();
+
+          // Guardarlo en el estado y en el navegador
+          this.setState({
+            username: payload.username,
+            expiration: fecha_expiration
+          });
+
+          let dataToSave = [
+            response.data.access_token,
+            response.data.refresh_token,
+            fecha_expiration
+          ];
+          response.data.remember
+            ? localStorage.setItem(
+                "token",
+                JSON.stringify([...dataToSave, true])
+              )
+            : sessionStorage.setItem(
+                "token",
+                JSON.stringify([...dataToSave, false])
+              );
+
+          // Lanzar el toast y cerrar el diálogo
           this.lanzarToast(
             "success",
             `¡Sesión iniciada satisfactoriamente :)!`
           );
           this.toggleModal();
+          console.log(this.state);
         } else {
           this.lanzarToast(
             "error",
@@ -107,9 +155,60 @@ class App extends Component {
     }
   };
 
+  lanzarPeticion = (metodo, url, auth, headers, params) => {
+    console.log(this.state);
+    console.log(url);
+    if (this.state.username !== "anonimo") {
+      let fecha_exp = new Date(this.state.expiration).toISOString();
+      if (fecha_exp < new Date().toISOString()) {
+        console.log("Caducado");
+        let storage =
+          sessionStorage.getItem("token") || localStorage.getItem("token");
+        storage = JSON.parse(storage);
+        let token_refresh = storage[1];
+        let inLocalStorage = storage[3];
+        let headers = { "Authorization": `Bearer ${token_refresh}` }; //prettier-ignore
+        axios
+          .get("http://localhost:5000/api/tokenRefresh", { headers })
+          .then(response => {
+            storage[0] = response.data.access_token;
+            // Obtener fecha de expiración del token
+            let fecha = new Date();
+            let expiration = 15;
+            let fecha_expiration = new Date(
+              fecha.getTime() + expiration * 60000
+            ).valueOf();
+            storage[2] = fecha_expiration;
+            inLocalStorage
+              ? localStorage.setItem("token", JSON.stringify(storage))
+              : sessionStorage.setItem("token", JSON.stringify(storage));
+          });
+      }
+    }
+    switch (metodo.toUpperCase()) {
+      case "GET":
+        if (headers === undefined) {
+          headers = {};
+        }
+        return axios.get(url, { headers });
+      case "POST":
+        if (headers === undefined) {
+          headers = {};
+        }
+
+        if (params === undefined) {
+          params = {};
+        }
+
+        return axios.post(url, params, { headers: headers });
+      default:
+        console.log(`Método ${metodo} no soportado`);
+    }
+  };
+
   render() {
     return (
-      <div className="container pt-5">
+      <>
         <Menu
           username={this.state.username}
           cerrarSesion={this.cerrarSesion}
@@ -117,31 +216,33 @@ class App extends Component {
           toggleModal={this.toggleModal}
           showModal={this.state.showModal}
         />
-        <div className="row mt-5">
-          <div className="col-sm">
-            {/* eslint-disable-next-line */}
-            <AñadirPregunta añadirPregunta={this.añadirPregunta} />
+        <div className="container-fluid">
+          <div className="row mt-5 ml-5">
+            <div className="col-sm">
+              {/* eslint-disable-next-line */}
+              <AñadirPregunta añadirPregunta={this.añadirPregunta} />
+            </div>
+
+            <div className="col-sm mr-5">
+              <PreguntasRecientes preguntas={this.state.preguntas} />
+            </div>
           </div>
 
-          <div className="col-sm">
-            <PreguntasRecientes preguntas={this.state.preguntas} />
+          <div>
+            <ToastContainer
+              position="bottom-center"
+              autoClose={3500}
+              hideProgressBar
+              newestOnTop={false}
+              closeOnClick
+              rtl={false}
+              pauseOnVisibilityChange
+              draggable
+              pauseOnHover
+            />
           </div>
         </div>
-
-        <div>
-          <ToastContainer
-            position="bottom-center"
-            autoClose={3500}
-            hideProgressBar
-            newestOnTop={false}
-            closeOnClick
-            rtl={false}
-            pauseOnVisibilityChange
-            draggable
-            pauseOnHover
-          />
-        </div>
-      </div>
+      </>
     );
   }
 }
